@@ -11,6 +11,7 @@ from .passwords import DEFAULT_PASSWORD, EncryptionPolicy
 from .bmp_codec import write_rgb565_bmp
 from .wzl_container import read_wzl, set_placement, write_wzl
 from .wzl_pixels import decode_frame_pixels
+from .wzx_index import sync_wzx
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,6 +44,10 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--all", action="store_true")
     export.add_argument("--index", type=int)
     export.add_argument("--one-based", action="store_true")
+    sync_index = sub.add_parser("sync-wzx")
+    sync_index.add_argument("wzx", type=Path)
+    sync_index.add_argument("wzl", type=Path)
+    sync_index.add_argument("output", type=Path)
     set_pos = sub.add_parser("set-placement")
     set_pos.add_argument("file", type=Path)
     set_pos.add_argument("output", type=Path)
@@ -71,6 +76,11 @@ def main(argv: list[str] | None = None) -> int:
         input_password=args.password or DEFAULT_PASSWORD,
         output_password=args.password or DEFAULT_PASSWORD,
     )
+
+    if args.command == "sync-wzx":
+        sync_wzx(args.wzx, args.wzl, args.output)
+        print(f"written: {args.output}")
+        return 0
     if args.command == "set-placement":
         resource = read_wzl(args.file)
         set_placement(resource, args.index, args.x, args.y)
