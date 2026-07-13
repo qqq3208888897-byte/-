@@ -12,6 +12,7 @@ from .bmp_codec import write_rgb565_bmp
 from .wzl_container import read_wzl, set_placement, write_wzl
 from .wzl_pixels import decode_frame_pixels
 from .wzx_index import sync_wzx
+from .wzl_builder import build_wzl, write_wzx_for_offsets
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -48,6 +49,12 @@ def main(argv: list[str] | None = None) -> int:
     sync_index.add_argument("wzx", type=Path)
     sync_index.add_argument("wzl", type=Path)
     sync_index.add_argument("output", type=Path)
+    import_images = sub.add_parser("import-images")
+    import_images.add_argument("directory", type=Path)
+    import_images.add_argument("output_wzl", type=Path)
+    import_images.add_argument("--output-wzx", type=Path)
+    import_images.add_argument("--template-wzl", type=Path)
+    import_images.add_argument("--empty-prefix", type=int, default=0)
     set_pos = sub.add_parser("set-placement")
     set_pos.add_argument("file", type=Path)
     set_pos.add_argument("output", type=Path)
@@ -80,6 +87,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "sync-wzx":
         sync_wzx(args.wzx, args.wzl, args.output)
         print(f"written: {args.output}")
+        return 0
+
+    if args.command == "import-images":
+        images = sorted([p for p in args.directory.iterdir() if p.is_file() and p.suffix.lower() in {".bmp", ".png"}], key=lambda p: (int(p.stem) if p.stem.isdigit() else 10**18, p.name.lower()))
+        offsets = build_wzl(images, args.output_wzl, template=args.template_wzl)
+        if args.output_wzx:
+            write_wzx_for_offsets(offsets, args.output_wzx, empty_prefix=args.empty_prefix)
+        print(f"written {len(images)} image(s): {args.output_wzl}")
         return 0
     if args.command == "set-placement":
         resource = read_wzl(args.file)

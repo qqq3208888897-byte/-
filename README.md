@@ -35,3 +35,11 @@ python -m unittest discover -s tests -v
 `dist/WzlCli.exe` 是 Nuitka 优化版，约 4 MB。它已经用真实 `cbohum4.wzl` 和参考编辑器导出的 BMP 做过像素级验证。
 
 PAK/WIL/WIS 的具体转换编码需要参考编辑器生成的目标文件样本后接入，当前不会伪造不兼容的 PAK 文件。
+
+Image import:
+
+```cmd
+WzlCli.exe import-images images output.wzl --output-wzx output.wzx
+```
+
+The importer accepts RGB565 BMP and PNG (PNG requires Pillow in source mode), writes zlib-compressed WZL frames, and can create a matching WZX index.
