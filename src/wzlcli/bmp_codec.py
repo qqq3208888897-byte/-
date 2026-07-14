@@ -27,22 +27,29 @@ def read_rgb565_bmp(path: Path) -> BmpImage:
         raise ValueError("不支持的 BMP 头")
     width, raw_height = struct.unpack_from("<ii", data, 18)
     planes, bpp, compression = struct.unpack_from("<HHI", data, 26)
-    if planes != 1 or bpp != 16 or compression != 3:
-        raise ValueError(f"只支持 16 位 BI_BITFIELDS BMP，实际 bpp={bpp}, compression={compression}")
+    if planes != 1 or not ((bpp == 16 and compression == 3) or (bpp == 24 and compression == 0)):
+        raise ValueError(f"只支持 16 位 RGB565 或 24 位 BGR BMP，实际 bpp={bpp}, compression={compression}")
     height = abs(raw_height)
-    mask_offset = 14 + header_size
-    if header_size >= 52:
-        red_mask, green_mask, blue_mask = struct.unpack_from("<III", data, mask_offset - 12)
+    if bpp == 16:
+        mask_offset = 14 + header_size
+        if header_size >= 52:
+            red_mask, green_mask, blue_mask = struct.unpack_from("<III", data, mask_offset - 12)
+        else:
+            red_mask, green_mask, blue_mask = struct.unpack_from("<III", data, mask_offset)
     else:
-        red_mask, green_mask, blue_mask = struct.unpack_from("<III", data, mask_offset)
-    stride = ((width * 2 + 3) // 4) * 4
+        red_mask, green_mask, blue_mask = 0xF800, 0x07E0, 0x001F
+    stride = ((width * (bpp // 8) + 3) // 4) * 4
     pixels: list[int] = []
     for row in range(height):
         source_row = row if raw_height < 0 else height - 1 - row
         start = pixel_offset + source_row * stride
         for x in range(width):
-            pixels.append(struct.unpack_from("<H", data, start + x * 2)[0])
-    return BmpImage(width, height, bpp, compression, red_mask, green_mask, blue_mask, tuple(pixels))
+            if bpp == 16:
+                pixels.append(struct.unpack_from("<H", data, start + x * 2)[0])
+            else:
+                blue, green, red = data[start + x * 3 : start + x * 3 + 3]
+                pixels.append(((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3))
+    return BmpImage(width, height, 16, 3, 0xF800, 0x07E0, 0x001F, tuple(pixels))
 
 
 def write_rgb565_bmp(path: Path, image: BmpImage) -> None:

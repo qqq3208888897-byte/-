@@ -33,3 +33,20 @@ class BmpCodecTests(unittest.TestCase):
             self.assertEqual(restored.pixels_rgb565, image.pixels_rgb565)
         finally:
             target.unlink(missing_ok=True)
+
+    def test_24bit_bgr_bmp_is_converted_to_rgb565(self):
+        target = Path(__file__).parent / "24bit-test.bmp"
+        try:
+            import struct
+            width, height = 2, 1
+            pixels = bytes([0, 0, 255, 0, 255, 0, 0, 0])
+            file_size = 54 + len(pixels)
+            header = bytearray(b"BM")
+            header += struct.pack("<IHHI", file_size, 0, 0, 54)
+            header += struct.pack("<IiiHHIIiiII", 40, width, height, 1, 24, 0, len(pixels), 0, 0, 0, 0)
+            target.write_bytes(bytes(header) + pixels)
+            image = read_rgb565_bmp(target)
+            self.assertEqual((image.width, image.height, image.bits_per_pixel), (2, 1, 16))
+            self.assertEqual(image.pixels_rgb565, (0xF800, 0x07E0))
+        finally:
+            target.unlink(missing_ok=True)
