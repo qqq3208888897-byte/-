@@ -12,7 +12,8 @@ from .bmp_codec import write_rgb565_bmp
 from .wzl_container import read_wzl, set_placement, write_wzl
 from .wzl_pixels import decode_frame_pixels
 from .wzx_index import sync_wzx
-from .wzl_builder import build_wzl, write_wzx_for_offsets
+from .wzl_builder import append_images, build_wzl, write_index_manifest, write_wzx_for_offsets
+from .wzx_index import append_wzx
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -55,6 +56,13 @@ def main(argv: list[str] | None = None) -> int:
     import_images.add_argument("--output-wzx", type=Path)
     import_images.add_argument("--template-wzl", type=Path)
     import_images.add_argument("--empty-prefix", type=int, default=0)
+    append = sub.add_parser("append-images")
+    append.add_argument("input_wzl", type=Path)
+    append.add_argument("image_directory", type=Path)
+    append.add_argument("output_wzl", type=Path)
+    append.add_argument("--input-wzx", type=Path)
+    append.add_argument("--output-wzx", type=Path)
+    append.add_argument("--index-json", type=Path)
     set_pos = sub.add_parser("set-placement")
     set_pos.add_argument("file", type=Path)
     set_pos.add_argument("output", type=Path)
@@ -95,6 +103,18 @@ def main(argv: list[str] | None = None) -> int:
         if args.output_wzx:
             write_wzx_for_offsets(offsets, args.output_wzx, empty_prefix=args.empty_prefix)
         print(f"written {len(images)} image(s): {args.output_wzl}")
+        return 0
+
+    if args.command == "append-images":
+        images = sorted([p for p in args.image_directory.iterdir() if p.is_file() and p.suffix.lower() in {".bmp", ".png"}], key=lambda p: (int(p.stem) if p.stem.isdigit() else 10**18, p.name.lower()))
+        entries = append_images(args.input_wzl, images, args.output_wzl)
+        if args.input_wzx and args.output_wzx:
+            append_wzx(args.input_wzx, args.output_wzl, [entry["record_offset"] for entry in entries], args.output_wzx)
+        if args.index_json:
+            write_index_manifest(entries, args.index_json)
+        print(f"written {len(entries)} new frame(s): {args.output_wzl}")
+        if entries:
+            print(f"new_index_range={entries[0]['index']}..{entries[-1]['index']}")
         return 0
     if args.command == "set-placement":
         resource = read_wzl(args.file)

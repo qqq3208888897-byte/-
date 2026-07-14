@@ -43,3 +43,9 @@ WzlCli.exe import-images images output.wzl --output-wzx output.wzx
 ```
 
 The importer accepts RGB565 BMP and PNG (PNG requires Pillow in source mode), writes zlib-compressed WZL frames, and can create a matching WZX index.
+
+Append images to an existing resource and receive the new record numbers:
+
+```cmd
+WzlCli.exe append-images input.wzl images output.wzl --input-wzx input.wzx --output-wzx output.wzx --index-json new-indexes.json
+```

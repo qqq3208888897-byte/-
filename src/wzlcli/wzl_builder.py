@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import struct
 import zlib
+import json
 from pathlib import Path
 
 from .bmp_codec import BmpImage, read_rgb565_bmp
@@ -85,3 +86,39 @@ def write_wzx_for_offsets(offsets: list[int], output: Path, empty_prefix: int = 
     table = [0] * empty_prefix + offsets
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(bytes(data) + struct.pack(f"<{len(table)}I", *table))
+
+
+def _build_records(images: list[Path], start_offset: int, start_index: int, placements: dict[int, tuple[int, int]] | None = None, template_header: bytes | None = None) -> tuple[bytes, list[dict]]:
+    result = bytearray()
+    entries: list[dict] = []
+    for local_index, image_path in enumerate(images):
+        image = load_image(image_path)
+        raw = _raw_bottom_up(image)
+        compressed = zlib.compress(raw)
+        x, y = (placements or {}).get(start_index + local_index, (0, 0))
+        if template_header and len(template_header) >= 2:
+            first, second = struct.unpack_from("<HH", template_header, 0)
+        else:
+            first, second = 261, 0
+        record_offset = start_offset + len(result)
+        result.extend(struct.pack("<8H", first, second, image.width, image.height, x & 0xFFFF, y & 0xFFFF, len(compressed), 0))
+        result.extend(compressed)
+        entries.append({"index": start_index + local_index, "source": image_path.name, "record_offset": record_offset, "width": image.width, "height": image.height, "placement_x": x, "placement_y": y})
+    return bytes(result), entries
+
+
+def append_images(existing_wzl: Path, images: list[Path], output_wzl: Path, placements: dict[int, tuple[int, int]] | None = None) -> list[dict]:
+    from .wzl_container import read_wzl
+    resource = read_wzl(existing_wzl)
+    source = existing_wzl.read_bytes()
+    last_header = resource.frames[-1].header if resource.frames else None
+    start_index = len(resource.frames)
+    records, entries = _build_records(images, len(source), start_index, placements, last_header)
+    output_wzl.parent.mkdir(parents=True, exist_ok=True)
+    output_wzl.write_bytes(source + records)
+    return entries
+
+
+def write_index_manifest(entries: list[dict], output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps({"new_frames": entries}, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -49,3 +49,13 @@ def sync_wzx(wzx_path: Path, wzl_path: Path, output: Path) -> None:
     updated = [mapping.get(offset, 0) for offset in index.offsets]
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(index.prefix + struct.pack(f"<{len(updated)}I", *updated))
+
+
+def append_wzx(wzx_path: Path, wzl_path: Path, new_record_offsets: list[int], output: Path) -> None:
+    index = read_wzx(wzx_path)
+    current_offsets = _wzl_record_offsets(wzl_path)
+    if len(current_offsets) < sum(offset != 0 for offset in index.offsets):
+        raise ValueError("WZL 有效记录少于 WZX 当前有效索引")
+    updated = list(index.offsets) + list(new_record_offsets)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(index.prefix[:44] + struct.pack("<I", len(updated)) + struct.pack(f"<{len(updated)}I", *updated))
