@@ -45,7 +45,6 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("output", type=Path)
     export.add_argument("--all", action="store_true")
     export.add_argument("--index", type=int)
-    export.add_argument("--one-based", action="store_true")
     sync_index = sub.add_parser("sync-wzx")
     sync_index.add_argument("wzx", type=Path)
     sync_index.add_argument("wzl", type=Path)
@@ -137,8 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         args.output.mkdir(parents=True, exist_ok=True)
         for frame in selected:
             image = decode_frame_pixels(frame)
-            number = frame.index + 1 if args.one_based else frame.index
-            write_rgb565_bmp(args.output / f"{number:05d}.BMP", image)
+            write_rgb565_bmp(args.output / f"{frame.index:05d}.BMP", image)
         print(f"written {len(selected)} BMP frame(s): {args.output}")
         return 0
 

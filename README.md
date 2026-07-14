@@ -44,6 +44,8 @@ WzlCli.exe import-images images output.wzl --output-wzx output.wzx
 
 The importer accepts RGB565 BMP and PNG (PNG requires Pillow in source mode), writes zlib-compressed WZL frames, and can create a matching WZX index.
 
+All image exports use strict zero-based numbering per source resource: `00000.BMP`, `00001.BMP`, and so on. Multiple source files must use separate output directories or prefixes.
+
 Append images to an existing resource and receive the new record numbers:
 
 ```cmd
